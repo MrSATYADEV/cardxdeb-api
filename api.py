@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+# -------- Keyword rules --------
 POSITIVE = [
     "success", "successful", "approved", "approve",
     "live", "valid", "passed", "ok", "done",
@@ -27,6 +28,13 @@ def detect_status(text: str) -> str:
     return "DECLINED"
 
 
+# -------- Health check (for Render + UptimeRobot) --------
+@app.route("/health", methods=["GET"])
+def health():
+    return "ok", 200
+
+
+# -------- Main API endpoint --------
 @app.route("/cc", methods=["GET"])
 def cc():
     user_input = request.args.get("input", "").strip()
@@ -60,6 +68,6 @@ def cc():
         })
 
 
+# -------- Local testing only --------
 if __name__ == "__main__":
-    # Local testing only
     app.run(host="127.0.0.1", port=8000)
