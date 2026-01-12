@@ -1,73 +1,38 @@
-import subprocess
 from flask import Flask, request, jsonify
+from b3 import run_b3
 
 app = Flask(__name__)
 
-# -------- Keyword rules --------
-POSITIVE = [
-    "success", "successful", "approved", "approve",
-    "live", "valid", "passed", "ok", "done",
-    "completed", "added"
-]
-
-NEGATIVE = [
-    "error", "failed", "declined", "invalid",
-    "dead", "blocked", "denied", "timeout",
-    "exception", "not allowed"
-]
-
-
-def detect_status(text: str) -> str:
-    t = text.lower()
-    for w in POSITIVE:
-        if w in t:
-            return "APPROVED"
-    for w in NEGATIVE:
-        if w in t:
-            return "DECLINED"
-    return "DECLINED"
-
-
-# -------- Health check (for Render + UptimeRobot) --------
+# ---------------- HEALTH CHECK ----------------
 @app.route("/health", methods=["GET"])
 def health():
-    return "ok", 200
+    return jsonify({
+        "status": "ok",
+        "service": "cardxdeb-api"
+    })
 
 
-# -------- Main API endpoint --------
+# ---------------- MAIN ENDPOINT ----------------
 @app.route("/cc", methods=["GET"])
 def cc():
-    user_input = request.args.get("input", "").strip()
+    card_input = request.args.get("input")
 
-    if not user_input:
+    if not card_input:
         return jsonify({
-            "status": "DECLINED",
-            "output": "error: no input provided"
-        })
+            "status": "ERROR",
+            "message": "input parameter missing"
+        }), 400
 
     try:
-        p = subprocess.run(
-            ["python3", "b3.py", user_input],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-
-        output = ((p.stdout or "") + (p.stderr or "")).strip()
-        status = detect_status(output)
-
-        return jsonify({
-            "status": status,
-            "output": output
-        })
+        result = run_b3(card_input)
+        return jsonify(result)
 
     except Exception as e:
         return jsonify({
-            "status": "DECLINED",
-            "output": str(e)
-        })
+            "status": "ERROR",
+            "message": str(e)
+        }), 500
 
 
-# -------- Local testing only --------
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000)
+    app.run(host="0.0.0.0", port=8000)
